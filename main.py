@@ -1,4 +1,4 @@
-import requests, os, re
+import requests, os
 from bs4 import BeautifulSoup
 
 urls = [
@@ -10,50 +10,45 @@ if "log" not in os.listdir(path):
     os.mkdir('log')
 os.chdir(path+"/log")
 
-def inisialisasi(s,t):
+def getData(linkTP):
+    pageTp = requests.get(linkTP)
+    soup = BeautifulSoup(pageTp.content, 'html.parser')
+    linkKumpul = soup.find(class_='entry-content').find_all('a')[-2]['href']
+    linkSoal = soup.find(class_='entry-content').find_all('a')[-1]['href']
+    print(f'Halaman TP : {linkTP}\nLink Pengumpulan : {linkKumpul}\nLink Soal : {linkSoal}\n')
+    return linkKumpul, linkSoal
+
+def inisialisasi(s,kategori):
     articles = s.find_all('article')
-    # f = open(t+'.log', 'w+')
+    os.mkdir(kategori)
+    os.chdir(kategori)
+    print("> Memulai Inisialisasi TP Praktikum {0}\n".format(kategori))
     for article in articles:
-        day = re.search(r'day">(.*?)</span', article).group(1).strip('\t')
-        month = re.search(r'month>(.*?)</span>', article).group(1).strip('\t')
         judul = article.find('h2', class_='entry-title').text
-        print(day, judul, judul)
-        # f.write(f'{article.text}\n')
-    # f.close()
-    print(f'Inisisialisasi matkul {t} sukses !')
+        if ("TP MODUL" in judul) and ("INT" not in judul):
+            day = article.find('span', class_='day').text.strip()
+            month = article.find('span', class_='month').text.strip()
+            year = article.find('span', class_='year').text.strip()
+            linkTp = article.find('h2', class_='entry-title').find('a')['href']
+            linkKumpul, linkSoal = getData(linkTp)
+            with open(f'{judul} ({day}-{month}-{year}).txt', 'w+') as f:
+                f.write(f'Halaman TP : {linkTp}\nLink Kumpul : {linkKumpul}\nLink Soal : {linkSoal}')
+    print(f'> Inisisialisasi selesai.\n')
 
 def bacaHalaman(url):
     page = requests.get(url)
     soup = BeautifulSoup(page.content, "html.parser")
-    title = soup.find('a', href=url).text
-    if title+'.log' not in os.listdir():
-        inisialisasi(soup, title)
+    kategori = soup.find('a', href=url).text
+    if kategori not in os.listdir():
+        inisialisasi(soup, kategori)
     else:
-        with open(title+'.log', 'r') as f:
-            logJudul = f.read()
-        print(logJudul)
+        os.chdir(kategori)
+        judul = soup.find('h2', class_="entry-title")
+        logJudul = '\n'.join(os.listdir())
+        if (judul.text in logJudul) and ("INT" not in judul.text) and ("TP MODUL" in judul.text):
+            linkTp = judul.find('a')['href']
+            linkKumpul, linkSoal = getData(linkTp)
 
-
-
-bacaHalaman(urls[0])
-
-
-# with open('webpro.log', 'a+') as f:
-#     f.write('Test 2\n')
-
-
-# url = "https://informatics.labs.telkomuniversity.ac.id/category/praktikum/pemrograman-web/"
-# page = requests.get(url)
-# soup = BeautifulSoup(page.content, "html.parser")
-# rs = soup.find_all('article')
-
-# i = 0
-# for title in rs:
-#     i += 1
-#     tag = title.find('h2', class_='entry-title')
-#     link = tag.find('a')['href']
-#     # if "INT" not in tag.text:
-#     print(f'{tag.text} | {link}')
-#
-# print(f"\nJumlah judul : {i}")
-# print(os.listdir(path))
+for url in urls:
+    bacaHalaman(url)
+    os.chdir(path + "/log")
